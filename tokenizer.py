@@ -10,6 +10,12 @@ Module provides following classes:
 - TokenTable: Token storage.
 - Tokenizer: Class which does the tokenization and gives access to the stream of
   tokens.
+
+Tokenizer takes a TokenTable which contains Token classes. When an input text is
+given for tokenization a stream of token instances from the token table classes
+is created.
+
+TODO: add ignore tokens and token tables
 """
 
 import re
@@ -18,20 +24,43 @@ from collections import OrderedDict as Odict
 
 
 class Token(object):
-    """Basic token base class."""
+    """Basic token base class.
+
+    Class attributes:
+        name: str. Token classes identifying name.
+        pattern_str: str. Regex pattern for the tokens of this class as a raw
+        string.
+
+    Attributes:
+        pos: int. Position of the token in the input stream.
+        value: *. Value of the token, can be for example a string or a int.
+    """
     name = None
     pattern_str = r""
 
     @classmethod
     def init(cls, name, pattern_str):
+        """Sets class attributes.
+
+        Args:
+            name: str. Token classes identifying name.
+            pattern_str: str. Regex pattern for the tokens of this class as a
+            raw string.
+        """
         cls.name = name
         cls.pattern_str = pattern_str
 
     @classmethod
     def info(cls):
+        """Info gives human readable information about the token class as a string.
+
+        Returns:
+            str. Information about the token class.
+        """
         return "class __name__: {}, class.name: {}, pattern: {}".format(cls.__name__, cls.name, repr(cls.pattern_str))
 
     def __init__(self, pos, value):
+        """Token instance initializer."""
         self.id = self.name + "-" + str(pos)
         self.pos = pos
         self.value = value
@@ -55,7 +84,7 @@ class TokenTable(object):
     """
     def __init__(self, name="token_table"):
         """Intialises TokenTable instance."""
-        self.__name = name
+        self.name = name
         # Maps "NAME/ID" to a Token (class object not instance) in ordered fashion.
         self.__table = Odict()
         # Table change rules pairs "TOKEN_NAME" with another TokenTable object.
@@ -71,7 +100,6 @@ class TokenTable(object):
 
         # Default token class is used with add_new_token method
         self.__default_token_class = Token
-    ###
     def __str__(self):
         return "<{},{}>{}".format(self.__token_re.pattern if self.__token_re else "None", self.__table_change_rules, self.__table)
     def info(self):
@@ -89,16 +117,8 @@ class TokenTable(object):
         return istr
     ### Properties
     @property
-    def name(self):
-        """Name property setter and getter."""
-        return self.__name
-    @name.setter
-    def name(self, new_name):
-        self.__name = new_name
-
-    @property
     def table_change_rules(self):
-        """table_change_rule property setter/getter/deleter."""
+        """table_change_rules property setter/getter/deleter."""
         return self.__table_change_rules
     @table_change_rules.setter
     def table_change_rules(self, rules):
@@ -123,29 +143,51 @@ class TokenTable(object):
     @default_token_class.deleter
     def default_token_class(self):
         self.__default_token_class = Token
-    # ###
+
     # Single rule manipulation
     def get_table_change_rule(self, token_name):
+        """Return table change rule with the given token name."""
         return self.__table_change_rules[token_name]
     def add_table_change_rule(self, token_name, token_table):
+        """Add table change rule from a token name to a token table."""
         self.__table_change_rules[token_name] = token_table
     def del_table_change_rule(self, token_name):
+        """Delete table change rule with the given token name."""
         del self.__table_change_rules[token_name]
-    # ###
+
     # Token add/get/remove
     def add_token(self, token):
+        """Add given token to the token table.
+
+        Args:
+            token. class(Token). Token class to be added to the token table.
+        """
         assert(issubclass(token, Token))
         self.__table[token.name] = token
         # Invaliadate compiled regex
         self.__token_re = None
     def add_tokens(self, token_iter):
+        """Add given tokens from iterable object to the token table.
+
+        Args:
+            token_iter. [class(Token)]. Token classes to be added to the token
+            table.
+        """
         for t in token_iter:
             self.__table[t.name] = t
         if len(t):
             # Invaliadate compiled regex
             self.__token_re = None
     def add_new_token(self, *vargs, token_subclass=None, **kwargs):
-        """
+        """Create and add a new token class to the token table.
+
+        Args:
+            token_subclass: class(Token). Create the new token class as parent
+            class of this. If none given token tables default_token_class attribute is used.
+            *vargs: Passed to the token_subclass classmethod init() which is
+            inherited from the Token base class.
+            **kwargs: Passed to the token_subclass classmethod init() which is
+            inherited from the Token base class.
         """
         set_new_class_name = False
         if not token_subclass:
@@ -162,6 +204,12 @@ class TokenTable(object):
             token_subclass.__name__ = self.default_token_class.__name__ + "-" + token_subclass.name
         self.add_token(token_subclass)
     def remove_token(self, token):
+        """Remove a token from the token table.
+
+        Args:
+            token. str|class(Token). Token to be removed from the token table.
+            Can be given as a name or a class.
+        """
         if isinstance(token, str):
             name = token
         else:
@@ -170,21 +218,35 @@ class TokenTable(object):
         # Invaliadate compiled regex
         self.__token_re = None
     def remove_tokens(self):
+        """Remove all tokens from the token table."""
         self.__table.clear()
         # Invaliadate compiled regex
         self.__token_re = None
-    def get_token(self, token_key):
-        return self.__table[token_key]
+    def get_token(self, token_name):
+        """Get token with given name.
+
+        Args:
+            token_name: str. Name of the token to get.
+        """
+        return self.__table[token_name]
     # ###
     def finalize(self):
         """Should be called after all tokens are added to the table.
 
-            Calls generate_match_re().
+        Calls generate_match_re() if token table is not empty and token_re has
+        not been previously compiled.
         """
         if self.__token_re == None and self.__table:
             self.regenerate_match_re()
     def regenerate_match_re(self):
         """Generates regex to which is used to match tokens in the token table.
+
+        The regex is generated from the tokens stored in the token table. It
+        needs to be regenerated manually every time a token is added iff token
+        table is used by the tokenizer in between.
+
+        Modifies attributes:
+            self.__token_re
         """
         token_re_str = r""
         for token in self.__table.values():
@@ -242,11 +304,13 @@ class Tokenizer(object):
         from the symbol table. Some tokens can cause symbol table switch using
         'table_change_rules'.
 
-        Parameters:
+        Args:
+            text: str. Target text where tokens are parsed.
+            yield_eop: bool. Last token returned in case text was fully
+            tokenized is end of program token named "EOP".
 
-        - `text`: str. Target text where tokens are parsed.
-        - `yield_eop`: bool. Last token returned in case text was fully
-          tokenized is end of program token named "EOP".
+        Raises:
+            TokenizerException: If the whole input was not tokenized.
         """
         def generate_error_msg(pos, text):
             line_start_pos = 0
