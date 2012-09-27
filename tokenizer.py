@@ -43,6 +43,7 @@ class Token(object):
     """
     name = None
     pattern_str = r""
+    extra_token_class = None
 
     @classmethod
     def init(cls, name, pattern_str):
@@ -346,7 +347,11 @@ class Tokenizer(object):
             pos = m.end()
 
             # Yield instance of a token class from the token_table
-            yield current_table.get_token(m.lastgroup)(value=m.group(m.lastgroup), pos=pos)
+            token_class = current_table.get_token(m.lastgroup)
+            yield token_class(value=m.group(m.lastgroup), pos=pos)
+            if token_class.extra_token_class:
+                # Yield extra token marker
+                yield token_class.extra_token_class(pos=pos)
 
             # After yielding we may change table
             if hasattr(current_table, "table_change_rules"):
