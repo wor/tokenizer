@@ -237,6 +237,13 @@ class TokenTable(object):
             token_name: str. Name of the token to get.
         """
         return self.__table[token_name]
+    def get_tokens(self):
+        """Get all tokens.
+
+        Returns:
+            [class(Token)]. Tokens in a list.
+        """
+        return list(self.__table.values())
     # ###
     def finalize(self):
         """Should be called after all tokens are added to the table.
