@@ -335,8 +335,8 @@ class Tokenizer(object):
             if line_end_pos == -1:
                 line_end_pos = len(text)-1
             line_pos = pos - line_start_pos
-            emsg = "Tokenizer stopped at pos {} of {} with char {}. The input line was:\n<{}>\n".format(
-                    pos, len(text), repr(text[pos]), text[line_start_pos:line_end_pos])
+            emsg = "Tokenizer stopped at pos {} of {} with char {}, with table {}. The input line was:\n<{}>\n".format(
+                    pos, len(text), repr(text[pos]), current_table.name, text[line_start_pos:line_end_pos])
             emsg += " " + line_pos*" " + "^"
             return emsg
 
