@@ -275,6 +275,22 @@ class TokenTable(object):
 
         Raises TokenizerRegexpError if regexp compilation fails.
         """
+        def find_broken_token_regex():
+            """Tries to find which token regex is broken.
+
+            Returns:
+                (str, str). Tuple of token name and token regex.
+            """
+            trs = r""
+            for token in self.__table.values():
+                if token.pattern_str: # Skip tokens with empty pattern
+                    trs += r"(?P<{}>{})".format(token.name, token.pattern_str)
+                    try:
+                        re.compile(trs, re.MULTILINE)
+                    except re.sre_compile.error:
+                        return (token.name, token.pattern_str)
+                    trs += r"|"
+
         token_re_str = r""
         for token in self.__table.values():
             if token.pattern_str: # Skip tokens with empty pattern
@@ -286,7 +302,8 @@ class TokenTable(object):
             self.__token_re = re.compile(token_re_str, re.MULTILINE)
         except re.sre_compile.error as e:
             tb = sys.exc_info()[2]
-            emsg = str(e) + " With regexp: {}".format(token_re_str)
+            token_name, broken_regex = find_broken_token_regex()
+            emsg = str(e) + " With token '{}' and regexp: {}".format(token_name, broken_regex)
             raise TokenizerRegexpError(emsg).with_traceback(tb)
 
 
