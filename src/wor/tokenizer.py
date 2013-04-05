@@ -20,7 +20,16 @@ TODO: check python2 compatibility.
 
 import re
 import os
+import sys
 from collections import OrderedDict as Odict
+
+
+class TokenizerException(Exception):
+    # TODO: add pos and other info to the exception object
+    pass
+
+class TokenizerRegexpError(Exception):
+    pass
 
 
 class Token(object):
@@ -249,6 +258,8 @@ class TokenTable(object):
 
         Calls generate_match_re() if token table is not empty and token_re has
         not been previously compiled.
+
+        Raises TokenizerRegexpError if regexp compilation fails.
         """
         if self.__token_re == None and self.__table:
             self.regenerate_match_re()
@@ -261,6 +272,8 @@ class TokenTable(object):
 
         Modifies attributes:
             self.__token_re
+
+        Raises TokenizerRegexpError if regexp compilation fails.
         """
         token_re_str = r""
         for token in self.__table.values():
@@ -268,13 +281,13 @@ class TokenTable(object):
                 token_re_str += r"(?P<{}>{})|".format(token.name, token.pattern_str)
         # Remove trailing '|'
         token_re_str = token_re_str[0:-1]
-        # Finally compile the regex
-        self.__token_re = re.compile(token_re_str, re.MULTILINE)
-
-
-class TokenizerException(Exception):
-    # TODO: add pos and other info to the exception object
-    pass
+        # Finally try to compile the regex
+        try:
+            self.__token_re = re.compile(token_re_str, re.MULTILINE)
+        except re.sre_compile.error as e:
+            tb = sys.exc_info()[2]
+            emsg = str(e) + " With regexp: {}".format(token_re_str)
+            raise TokenizerRegexpError(emsg).with_traceback(tb)
 
 
 class Tokenizer(object):
