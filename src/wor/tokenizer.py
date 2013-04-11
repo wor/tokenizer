@@ -62,7 +62,7 @@ class Token(object):
         Args:
             name:        str. Token class' identifying name.
             pattern_str: str. Regex pattern for the tokens of this class as a
-            raw string.
+                raw string.
         """
         cls.name = name
         cls.pattern_str = pattern_str
@@ -98,12 +98,12 @@ class TokenTable(object):
     Attributes:
         name:                str. Name for the token table.
         table_change_rules:  dict. Rules for the tokenizer, to instruct, after
-        which token token table is changed. So a rule is a mapping from a token
-        name to TokenTable.
+            which token token table is changed. So a rule is a mapping from a token
+            name to TokenTable.
         token_re:            re. Compiled regular expression for the matching of
-        the tokens. Used by the tokenizer.
+            the tokens. Used by the tokenizer.
         default_token_class: class(Token). For the add_new_token method the
-        default token base class.
+            default token base class.
     """
     def __init__(self, name="token_table"):
         """Intialises TokenTable instance."""
@@ -194,7 +194,7 @@ class TokenTable(object):
 
         Args:
             token_iter. [class(Token)]. Token classes to be added to the token
-            table.
+                table.
         """
         for t in token_iter:
             self.__table[t.name] = t
@@ -206,12 +206,12 @@ class TokenTable(object):
 
         Args:
             token_subclass: class(Token). Create the new token class as parent
-            class of this. If none given token tables default_token_class
-            attribute is used.
+                class of this. If none given token tables default_token_class
+                attribute is used.
             *vargs:         *. Passed to the token_subclass classmethod init()
-            which is inherited from the Token base class.
+                which is inherited from the Token base class.
             **kwargs:       *. Passed to the token_subclass classmethod init()
-            which is inherited from the Token base class.
+                which is inherited from the Token base class.
         """
         set_new_class_name = False
         if not token_subclass:
@@ -232,7 +232,7 @@ class TokenTable(object):
 
         Args:
             token. str|class(Token). Token to be removed from the token table.
-            Can be given as a name or a class.
+                Can be given as a name or a class.
         """
         if isinstance(token, str):
             name = token
@@ -331,7 +331,7 @@ class Tokenizer(object):
 
     Attributes:
         token_table: class(TokenTable): Main token table, which is used as
-        tokenization is started.
+            tokenization is started.
     """
     def __init__(self, token_table, context_tables=[]):
         """Tokenizer init.
@@ -361,7 +361,7 @@ class Tokenizer(object):
         Args:
             text:      str. Target text where tokens are parsed.
             yield_eop: bool. Last token returned in case text was fully
-            tokenized is end of program token named "EOP".
+                tokenized is end of program token named "EOP".
 
         Raises:
             TokenizerException: If the whole input was not tokenized.
