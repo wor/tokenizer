@@ -1,14 +1,18 @@
 # -*- coding: utf-8 -*- vim:fenc=utf-8:ft=python:et:sw=4:ts=4:sts=4
 """Tokenizer module.
 
-Basic tokenizer with option to switch token match pattern when certain token is
-met.
+Basic regular expression based tokenizer with option to switch token match
+pattern when certain token is met.
 
 Module provides following classes:
 - Token: Base class for tokens.
 - TokenTable: Token storage.
 - Tokenizer: Class which does the tokenization and gives access to the stream of
   tokens.
+
+Exception classes:
+- TokenizerException
+- TokenizerRegexpError
 
 Tokenizer takes a TokenTable which contains Token classes. When an input text is
 given for tokenization a stream of token instances from the token table classes
@@ -25,10 +29,12 @@ from collections import OrderedDict as Odict
 
 
 class TokenizerException(Exception):
+    """Exception occurs when whole input could not be tokenized."""
     # TODO: add pos and other info to the exception object
     pass
 
 class TokenizerRegexpError(Exception):
+    """Exception occurs when Tokenizer regexp compilation fails."""
     pass
 
 
