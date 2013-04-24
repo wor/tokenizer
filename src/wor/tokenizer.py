@@ -328,7 +328,7 @@ class TokenTable(object):
         except re.sre_compile.error as e:
             tb = sys.exc_info()[2]
             token_name, broken_regex = find_broken_token_regex()
-            emsg = str(e) + " With token '{}' and regexp: {}".format(token_name, broken_regex)
+            emsg = str(e) + " With token '{}' and regexp: '{}' and whole regexp: {}".format(token_name, broken_regex, token_re_str)
             raise TokenizerRegexpError(emsg).with_traceback(tb)
 
 
