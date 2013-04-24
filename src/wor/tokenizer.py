@@ -110,9 +110,9 @@ class TokenTable(object):
 
     Attributes:
         name:                str. Name for the token table.
-        table_change_rules:  dict. Rules for the tokenizer, to instruct, after
-            which token token table is changed. So a rule is a mapping from a token
-            name to TokenTable.
+        table_change_rules:  {str: TokenTable()}. Rules for the tokenizer, to
+            instruct, after which token token table is changed. So a rule is a
+            mapping from a token name to TokenTable.
         token_re:            re. Compiled regular expression for the matching of
             the tokens. Used by the tokenizer.
         default_token_class: class(Token). For the add_new_token method the
