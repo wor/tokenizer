@@ -398,8 +398,11 @@ class Tokenizer(object):
         def get_sub_matches(groups):
             sub_matches = []
             i = 0
-            while len(groups) > i and groups[i] != None:
-                sub_matches.append(groups[i])
+            while len(groups) > i:
+                # Group matches don't have to exists, for example in:
+                # r"[ab](test)?=(.+)" the (test)? group might be None.
+                if groups[i] != None:
+                    sub_matches.append(groups[i])
                 i += 1
             return sub_matches
 
