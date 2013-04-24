@@ -18,7 +18,7 @@ Tokenizer takes a TokenTable which contains Token classes. When an input text is
 given for tokenization a stream of token instances from the token table classes
 is created.
 
-TODO: add ignore tokens and token tables
+TODO: add ignore token tables (ignore tokens already implemented)
 TODO: check python2 compatibility.
 TODO: maybe support named subvalues for tokens?
 """
@@ -65,17 +65,20 @@ class Token(object):
     extra_token_class = None
 
     @classmethod
-    def init(cls, name, pattern_str):
+    def init(cls, name, pattern_str, ignore=False):
         """Sets class attributes.
 
         Args:
             name:        str. Token class' identifying name.
             pattern_str: str. Regex pattern for the tokens of this class as a
                 raw string.
+            ignore:      bool. Is token ignored/skipped during tokenization.
+                Default is False.
         """
         cls.name = name
         cls.basename = cls.__base__.__name__
         cls.pattern_str = pattern_str
+        cls.ignore = ignore
 
     @classmethod
     def info(cls):
@@ -424,12 +427,17 @@ class Tokenizer(object):
 
             # If token regexp had sub matches, store them also with the token
             token_subvalues = get_sub_matches(m.groups()[m.lastindex:])
-            yield token_class(value=m.group(m.lastgroup), pos=pos, subvalues=token_subvalues)
-            if token_class.extra_token_class:
-                # Yield extra token marker
-                yield token_class.extra_token_class(pos=pos)
+            # TODO: print debug log about sub matches
+            # print("tokenizer:\n", m.group(m.lastgroup), token_subvalues, m.lastindex, m.groups())
 
-            # After yielding we may change table
+            # Finally yield if not ignored token
+            if not token_class.ignore:
+                yield token_class(value=m.group(m.lastgroup), pos=pos, subvalues=token_subvalues)
+                if token_class.extra_token_class:
+                    # Yield extra token marker
+                    yield token_class.extra_token_class(pos=pos)
+
+            # After yielding or ignoring we may change table
             if hasattr(current_table, "table_change_rules"):
                 if m.lastgroup in current_table.table_change_rules:
                     current_table = current_table.table_change_rules[m.lastgroup]
