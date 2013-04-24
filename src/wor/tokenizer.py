@@ -20,6 +20,7 @@ is created.
 
 TODO: add ignore tokens and token tables
 TODO: check python2 compatibility.
+TODO: maybe support named subvalues for tokens?
 """
 
 import re
@@ -43,6 +44,7 @@ class Token(object):
 
     Class attributes:
         name:        str. Token classes identifying name.
+        basename:    str. Parent (base) class' name (after init())
         pattern_str: str. Regex pattern for the tokens of this class as a raw
         string.
 
@@ -58,6 +60,7 @@ class Token(object):
             the parsing side to the tokenizer.
     """
     name = None
+    basename = None
     pattern_str = r""
     extra_token_class = None
 
@@ -71,6 +74,7 @@ class Token(object):
                 raw string.
         """
         cls.name = name
+        cls.basename = cls.__base__.__name__
         cls.pattern_str = pattern_str
 
     @classmethod
@@ -80,7 +84,7 @@ class Token(object):
         Returns:
             str. Information about the token class.
         """
-        return "class __name__: {}, class.name: {}, pattern: {}".format(cls.__name__, cls.name, repr(cls.pattern_str))
+        return "class __name__: {}, basename: {}, name: {}, pattern: {}".format(cls.__name__, cls.basename, cls.name, repr(cls.pattern_str))
 
     def __init__(self, pos, value, subvalues=[]):
         """Token instance initializer."""
@@ -210,8 +214,12 @@ class TokenTable(object):
     def add_new_token(self, *vargs, token_subclass=None, **kwargs):
         """Create and add a new token class to the token table.
 
+        New token classes are child classes of given token_subclass or if not
+        given then default_token_class is used. In any case new class is always
+        created.
+
         Args:
-            token_subclass: class(Token). Create the new token class as parent
+            token_subclass: class(Token). Create the new token class as child
                 class of this. If none given token tables default_token_class
                 attribute is used.
             *vargs:         *. Passed to the token_subclass classmethod init()
@@ -219,20 +227,23 @@ class TokenTable(object):
             **kwargs:       *. Passed to the token_subclass classmethod init()
                 which is inherited from the Token base class.
         """
-        set_new_class_name = False
-        if not token_subclass:
-            class c(self.default_token_class):
-                pass
-            token_subclass = c
-            set_new_class_name = True
-        assert(issubclass(token_subclass, Token))
+        if token_subclass == None:
+            token_subclass = self.default_token_class
 
-        token_subclass.init(*vargs, **kwargs)
-        if token_subclass.name in self.__table:
-            raise KeyError("Class named '{}' was already in the token table.".format(token_subclass.name))
-        if set_new_class_name:
-            token_subclass.__name__ = self.default_token_class.__name__ + "-" + token_subclass.name
-        self.add_token(token_subclass)
+        class new_token_class(token_subclass):
+            pass
+
+        assert(issubclass(new_token_class, Token))
+
+        new_token_class.init(*vargs, **kwargs)
+
+        # XXX: what is new_token_class.name
+        if new_token_class.name in self.__table:
+            raise KeyError("Class named '{}' was already in the token table.".format(new_token_class.name))
+
+        new_token_class.__name__ = token_subclass.__name__ + "-" + new_token_class.name
+
+        self.add_token(new_token_class)
     def remove_token(self, token):
         """Remove a token from the token table.
 
