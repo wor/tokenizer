@@ -26,6 +26,7 @@ TODO: maybe support named subvalues for tokens?
 import re
 import os
 import sys
+import logging
 from collections import OrderedDict as Odict
 
 
@@ -409,6 +410,8 @@ class Tokenizer(object):
                 i += 1
             return sub_matches
 
+        log = logging.getLogger(__name__)
+
         # Initial table
         current_table = self.token_table
 
@@ -441,6 +444,7 @@ class Tokenizer(object):
             if hasattr(current_table, "table_change_rules"):
                 if m.lastgroup in current_table.table_change_rules:
                     current_table = current_table.table_change_rules[m.lastgroup]
+                    log.debug("Current token table change: {} -> {}".format(m.lastgroup, current_table.name))
 
         if yield_eop:
             yield current_table.get_token("EOP")(value=None, pos=pos)
