@@ -23,7 +23,17 @@ TODO: check python2 compatibility.
 TODO: maybe support named subvalues for tokens?
 """
 
-import re
+
+# Try to use <https://pypi.python.org/pypi/regex> instead of python default "re"
+# regex library. Python default regex library "re" has now an artificial
+# limitation of 100 named groups:
+#   File "/usr/lib/python3.3/sre_compile.py", line 505, in compile
+#       "sorry, but this version only supports 100 named groups"
+#       AssertionError: sorry, but this version only supports 100 named groups
+try:
+    import regex as re
+except ImportError:
+    import re
 import os
 import sys
 import logging
