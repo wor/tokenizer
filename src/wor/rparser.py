@@ -1,0 +1,298 @@
+# -*- coding: utf-8 -*- vim:fenc=utf-8:ft=python:et:sw=4:ts=4:sts=4
+"""Basic recursive parser.
+"""
+import traceback
+import sys
+import logging
+import collections
+
+from . import tokenizer
+
+
+class Parser(object):
+    """Basic recursive parser.
+
+    peek and get_current_token need support from the token generator object.
+    """
+    def __init__(self, token_generator, log=None):
+        self.token_generator = token_generator
+        self.childs = []
+        self.log = log if log != None else logging.getLogger(__name__)
+    def __repr__(self):
+        def get_str(n, d):
+            get_str.string += d*" " + repr(n) + "\n"
+            return True,n,None
+        get_str.string = ""
+        self.child_visitor(get_str)
+        return get_str.string
+    def __str__(self):
+        def get_str(n, d):
+            get_str.string += d*" " + str(n) + "\n"
+            return True,n,None
+        get_str.string = ""
+        self.child_visitor(get_str)
+        return get_str.string
+    def get_token_gen(self):
+        return self.token_generator
+    def get_current_token(self):
+        return self.token_generator.prev()
+    def get_next_token(self):
+        return next(self.token_generator)
+    def next_token(self):
+        return next(self.token_generator)
+    def peek(self, count=1):
+        return self.token_generator.peek(count)
+    def expression(self, rbp=0):
+        self.log.debug("-------------- rbp={} ---------------".format(rbp))
+        self.log.debug("%s: Entering: with current token: %s", self.__class__.__name__, self.get_current_token())
+        ct = self.get_current_token()
+        # Move left head next non null producing token
+        left = ct.left(self)
+        self.log.debug("%s: got left: %s", self.__class__.__name__, left)
+        self.log.debug("- Right token:{} : {}".format(self.get_current_token().lbp, self.get_current_token()))
+        while rbp < self.get_current_token().lbp:
+            self.log.debug("--> Current left :", left)
+            self.log.debug("--> Right token:{} : {}".format(self.get_current_token().lbp, self.get_current_token()))
+            # TODO: rename return var, not descriptive
+            try:
+                left = self.get_current_token().right(left, self)
+            except SyntaxError as e:
+                self.log.error(e)
+                self.log.debug("Traceback:\n" + "".join(traceback.format_stack()))
+                sys.exit(1)
+        self.log.debug("------------------ returning: {}".format(left))
+        return left
+    def parse(self):
+        while self.get_current_token().name != "EOP":
+            self.log.debug("========= Parser level: %s", self.get_current_token())
+            new_expression = self.expression()
+            self.log.debug("%s: got expression: %s", self.__class__.__name__, new_expression)
+            if new_expression:
+                self.childs.append(new_expression)
+                from_pos = len(self.childs)-5 if len(self.childs) >= 5 else 0
+                for i,c in enumerate(self.childs[from_pos:]):
+                    self.log.debug("%d: %s", i+from_pos, c)
+            else:
+                self.log.debug("None or otherwise false new_expression returned.")
+        for i,c in enumerate(self.childs):
+            self.log.debug("%d: %s", i, c)
+    #
+    # Utility functions
+    #
+    def child_visitor(self, actor):
+        def treeVisitor(node, actor, depth=0, parent=None, node_i=None):
+            """Tree node visitor from root to leafs.
+
+            Args:
+                actor: (node, depth: int) -> (descend, new_node, new_actor).
+                        Actor function which called for every visited node of
+                        the tree. Returns 3 values:
+                            descend: bool. True if continue to descent to the
+                                nodes childs.
+                            new_node: object: New object for which the current
+                                node is to be replaced.
+                            new_actor: Actor function for the childs. Used if
+                                ´descend´ was True.
+                depth: int. Given root node depth. Provide if given root is not
+                            at depth 0.
+                parent: Symbol. Parent node.
+
+            Example:
+
+            > # Print all nodes with increasing indent as depth increseases.
+            > # Continue descend if possible, replace current node with "n"
+            > # (same node in this case), no new actor function to replace
+            > # current actor function.
+            > def print_node(n, d):
+            >     print(d*" ", n)
+            >     return True,n,None
+            > treeVisitor(root, print_node)
+            """
+            descend, new_node, new_actor = actor(node, depth)
+            if hasattr(parent, "childs") and parent and node_i != None:
+                parent.childs[node_i] = new_node
+            if descend and hasattr(node, "childs"):
+                for i,c in enumerate(node.childs):
+                    treeVisitor(node=c, actor=new_actor if new_actor else actor, depth=depth+1, parent=node, node_i=i)
+
+        for i,c in enumerate(self.childs):
+            treeVisitor(node=c, actor=actor, parent=self, node_i=i)
+
+    def process_exp_until(self, parent_token=None, end=[], plain=[], skip=[], asserts=None, nasserts=None):
+        """Processes tokens/symbols until one of the end tokens/symbols is met.
+
+        Processed tokens/symbols are added as current tokens childs. Processing
+        means using expression() which handels calling left() and right().
+
+        Args:
+            end:      [Token()]. List of Tokens on which processing is ended.
+            plain:    [Token()]. List of Tokens which are just added as current
+                                 tokens childs, without processing them (calling
+                                 left()).
+            skip:     [Token()]. List of Tokens which are just ignored/skipped.
+            asserts:  ( [Token()], [Token()], [Token()] ). 3-tuple of Token
+                        lists. Tokens which asserted at start, middle and end.
+            nasserts: ( [Token()], [Token()], [Token()] ). 3-tuple of Token
+                        lists. Tokens which nasserted at start, middle and end.
+        """
+        if parent_token == None:
+            parent_token = self.get_current_token()
+        log_origin = parent_token.__class__.__name__
+
+        # Read next token
+        self.next_token()
+        # Start asserts
+        if nasserts and nasserts[0]:
+            parent_token.nassert_token(self.get_current_token(), nasserts[0])
+        if asserts and asserts[0]:
+            parent_token.assert_token(self.get_current_token(), asserts[0])
+        self.log.debug("%s: start asserts OK!" % (log_origin))
+        while self.get_current_token().name not in end:
+            self.log.debug("%s: current_token_name: %s" % (log_origin, self.get_current_token().name))
+            # Middle asserts
+            if nasserts and nasserts[1]:
+                parent_token.nassert_token(self.get_current_token(), nasserts[1])
+            if asserts and asserts[1]:
+                parent_token.assert_token(self.get_current_token(), asserts[1])
+
+            # Let's (before) skip "skip" tokens
+            while self.get_current_token().name in skip:
+                self.next_token()
+                continue
+
+            if self.get_current_token().name in plain:
+                # Use plain token
+                parent_token.childs.append(self.get_current_token())
+                self.next_token()
+            else:
+                # Parse next expression
+                exp = self.expression()
+                if exp != None: # Skip None expressions
+                    parent_token.childs.append(exp)
+                self.log.debug("%s: got expression: %s", log_origin, exp)
+                # Expression moves to the next token
+
+            # Let's (after) skip "skip" tokens
+            while self.get_current_token().name in skip:
+                self.next_token()
+                continue
+
+        # If just one end token then just skip it, we know what it is.
+        if isinstance(end, collections.Iterable) and not isinstance(end, str) and len(end) > 1:
+            parent_token.childs.append(self.get_current_token()) # Append token in the end.
+        else:
+            self.log.debug("%s: skipped end token: %s", log_origin, self.get_current_token().name)
+
+        self.next_token()
+
+        # End asserts
+        if nasserts and nasserts[2]:
+            parent_token.nassert_token(self.get_current_token(), nasserts[2])
+        if asserts and asserts[2]:
+            parent_token.assert_token(self.get_current_token(), asserts[2])
+
+
+class Symbol(tokenizer.Token):
+    """Symbol used for recursive parsing.
+
+    Implements right() and left() functions and "lbp" handling.
+    """
+    lbp = 0
+    log = logging.getLogger(__name__)
+
+    @classmethod
+    def init(cls, name, pattern_str, lbp=0):
+        super().init(name, pattern_str)
+        cls.lbp = lbp
+
+    @classmethod
+    def info(cls):
+        return super().info() + ", lbp: {}".format(cls.lbp)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # For parse tree
+        self.childs = [] # first, second, third
+
+    def __repr__(self):
+        return "{}<{}><pos={}>{}:{}:[{}]".format(
+                self.name,
+                self.pattern_str,
+                self.pos,
+                repr(self.value),
+                repr(self.subvalues),
+                len(self.childs))
+
+    def __str__(self):
+        """Human readable representation of the token instance."""
+        return self.name + ":" + repr(self.value) + ((":" + repr(self.subvalues)) if self.subvalues else "")
+
+    def left(self, parser=None):
+        """Bind from left.
+
+        Function for symbols which binds other symbols from left.
+
+        Implementation of this should return symbol itself and leave next token not
+        eaten by this symbol retreavable.
+        """
+        parser.next_token()
+        return self
+        #emsg = "Syntax error '{}'".format(self.__class__.__name__)
+        #raise SyntaxError(emsg)
+
+    def right(self, left, parser=None):
+        """Bind from right.
+
+        Function for symbols which binds other symbols from right.
+
+        Implementation of this should return symbol itself and leave next token not
+        eaten by this symbol retreavable.
+        """
+        emsg = "Unknown operator '{}'".format(self.__class__.__name__)
+        raise SyntaxError(emsg)
+
+    ### General util functions
+    def get_asserted_expression(self, parser, token_name):
+        """Returns expression parsed from the current token, if its name
+        matches given, else raises a SyntaxError.
+        """
+        exp = parser.expression()
+        self.assert_token(exp, token_name)
+        return exp
+    def get_asserted_next_token(self, token_gen, token_name):
+        """Returns next token if its name matches given, else raises a SyntaxError.
+        """
+        next_token = next(token_gen)
+        self.assert_token(next_token, token_name)
+        return next_token
+    def get_nasserted_next_token(self, token_gen, token_name):
+        """Returns next token if its name does not match given else raises a SyntaxError.
+        """
+        next_token = next(token_gen)
+        self.massert_token(next_token.name, token_name)
+        return next_token
+    def assert_token(self, token, token_name):
+        emsg = "Syntax error '{}': expected '{}' token next (got: {})".format(self.__class__.__name__, token_name, token.id)
+        if isinstance(token_name, list):
+            if token.name not in token_name:
+                raise SyntaxError(emsg)
+        elif token.name != token_name:
+            raise SyntaxError(emsg)
+    def nassert_token(self, token, token_name):
+        emsg = "Syntax error '{}': did not expect '{}' token next at position '{}'".format(self.__class__.__name__, token_name, self.pos)
+        if isinstance(token_name, list):
+            if token.name in token_name:
+                raise SyntaxError(emsg)
+        elif token.name == token_name:
+            raise SyntaxError(emsg)
+
+    def addToGraph(self, g, parent=None):
+        """Adds self to a given graph.
+        """
+        g.addNode(self)
+        if parent:
+            g.addEdge((parent, self))
+        for c in self.childs:
+            if c:
+                c.addToGraph(g, self)
+
