@@ -448,7 +448,7 @@ class Tokenizer(object):
                 yield token_class(value=m.group(m.lastgroup), pos=pos, subvalues=token_subvalues)
                 if token_class.extra_token_class:
                     # Yield extra token marker
-                    yield token_class.extra_token_class(pos=pos)
+                    yield token_class.extra_token_class(pos=pos, value=None)
 
             # After yielding or ignoring we may change table
             if hasattr(current_table, "table_change_rules"):
