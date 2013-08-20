@@ -79,8 +79,20 @@ class Parser(object):
     #
     # Utility functions
     #
-    def child_visitor(self, actor):
-        def treeVisitor(node, actor, depth=0, parent=None, node_i=None):
+    def child_visitor(self, actor, *args):
+        """Parser child (symbol) visitor.
+
+        Example:
+
+        > # Call clean() for Symbols if it exists
+        > def call_clean(n, d):
+        >     if hasattr(n, "clean") and not n.cleaned:
+        >         n.clean()
+        >         return False,n,None
+        >     return True,n,None
+        > parser.child_visitor(call_clean)
+        """
+        def treeVisitor(node, actor, *args, depth=0, parent=None, node_i=None):
             """Tree node visitor from root to leafs.
 
             Args:
@@ -93,6 +105,7 @@ class Parser(object):
                                 node is to be replaced.
                             new_actor: Actor function for the childs. Used if
                                 ´descend´ was True.
+                *args: Non-keyword arguments for the given to the actor.
                 depth: int. Given root node depth. Provide if given root is not
                             at depth 0.
                 parent: Symbol. Parent node.
@@ -101,22 +114,67 @@ class Parser(object):
 
             > # Print all nodes with increasing indent as depth increseases.
             > # Continue descend if possible, replace current node with "n"
-            > # (same node in this case), no new actor function to replace
+            > # (same node in this case), and no new actor function to replace
             > # current actor function.
             > def print_node(n, d):
             >     print(d*" ", n)
             >     return True,n,None
             > treeVisitor(root, print_node)
             """
-            descend, new_node, new_actor = actor(node, depth)
+            descend, new_node, new_actor = actor(node, depth, *args)
             if hasattr(parent, "childs") and parent and node_i != None:
                 parent.childs[node_i] = new_node
             if descend and hasattr(node, "childs"):
                 for i,c in enumerate(node.childs):
-                    treeVisitor(node=c, actor=new_actor if new_actor else actor, depth=depth+1, parent=node, node_i=i)
+                    treeVisitor(c, new_actor if new_actor else actor, *args, depth=depth+1, parent=node, node_i=i)
 
         for i,c in enumerate(self.childs):
-            treeVisitor(node=c, actor=actor, parent=self, node_i=i)
+            treeVisitor(c, actor, *args, depth=0, parent=self, node_i=i)
+    def get_dot_graph(self, name="parsed"):
+        """Returns dot format graph of the current parse tree as a string.
+        """
+        def escape(string, echars, dechars=[]):
+            """Escapes and double escapes chars with \ in the given "string".
+
+            This is taken from pyworlib.
+
+            Parameters:
+
+            - `string`: str. String which chars are escaped with \.
+            - `echars`: [str]. List of strings of length 1 which are escaped from given
+              "string".
+            - `dechars`: [char]. List of strings of length 1 which are double escaped
+              from given "string". Meaning that they are escaped second time only if
+              they were orginally escaped in the "string", for example, if dechars is
+              ['n'] and the "string" contains r'...\n...' then the string becomes
+              '...\\n...'.
+            """
+            s = list(string)
+            for i, c in enumerate(string):
+                if dechars and c == '\\' and len(string)-1 >= i+1 and string[i+1] in dechars:
+                    s[i] = "\\\\"
+                elif c in echars:
+                    if c == "\000":
+                        s[i] = "\\000"
+                    else:
+                        s[i] = "\\" + c
+            return "".join(s)
+
+        # Make two passes over the graph and generate dot graph to a list of
+        # strings.
+        def node_vis(node, depth, dot_str_list):
+            dot_str_list.append('  {} [label="{}\\n{}"]\n'.format(node.id, node.id, escape(repr(node.value)[1:-1], ['"'], ['n'])))
+            return True,node,None
+        def edge_vis(node, depth, dot_str_list):
+            for child in node.childs:
+                dot_str_list.append("    {} -> {}\n".format(node.id, child.id))
+            return True,node,None
+        dot_str_list = ["Digraph {} {{\n".format(name)]
+        self.child_visitor(node_vis, dot_str_list)
+        self.child_visitor(edge_vis, dot_str_list)
+        dot_str_list.append("}\n")
+
+        return "".join(dot_str_list)
 
     def process_exp_until(self, parent_token=None, end=[], plain=[], skip=[], asserts=None, nasserts=None):
         """Processes tokens/symbols until one of the end tokens/symbols is met.
