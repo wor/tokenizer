@@ -343,14 +343,3 @@ class Symbol(tokenizer.Token):
                 raise SyntaxError(emsg)
         elif token.name == token_name:
             raise SyntaxError(emsg)
-
-    def addToGraph(self, g, parent=None):
-        """Adds self to a given graph.
-        """
-        g.addNode(self)
-        if parent:
-            g.addEdge((parent, self))
-        for c in self.childs:
-            if c:
-                c.addToGraph(g, self)
-
