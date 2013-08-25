@@ -44,14 +44,21 @@ class Parser(object):
         return self.token_generator.peek(count)
     def expression(self, rbp=0):
         self.log.debug("-------------- rbp={} ---------------".format(rbp))
-        self.log.debug("%s: Entering: with current token: %s", self.__class__.__name__, self.get_current_token())
+        self.log.debug("{}: Entering: with current token: {}"
+                .format(self.__class__.__name__, self.get_current_token()))
         ct = self.get_current_token()
         # Move left head next non null producing token
-        left = ct.left(self)
-        self.log.debug("%s: got left: %s", self.__class__.__name__, left)
+        try:
+            left = ct.left(self)
+        except StopIteration as e:
+            self.log.error("{}: Tokens '{}' left() tried to parse beyond last token!"
+                    .format(self.__class__.__name__, repr(self.get_current_token())))
+            self.log.debug("Traceback:\n" + "".join(traceback.format_stack()))
+            sys.exit(1)
+        self.log.debug("{}: got left: {}".format(self.__class__.__name__, left))
         self.log.debug("- Right token:{} : {}".format(self.get_current_token().lbp, self.get_current_token()))
         while rbp < self.get_current_token().lbp:
-            self.log.debug("--> Current left :", left)
+            self.log.debug("--> Current left: {}".format(left))
             self.log.debug("--> Right token:{} : {}".format(self.get_current_token().lbp, self.get_current_token()))
             # TODO: rename return var, not descriptive
             try:
@@ -60,6 +67,12 @@ class Parser(object):
                 self.log.error(e)
                 self.log.debug("Traceback:\n" + "".join(traceback.format_stack()))
                 sys.exit(1)
+            except StopIteration as e:
+                self.log.error("{}: Tokens '{}' right() tried to parse beyond last token!"
+                        .format(self.__class__.__name__, repr(self.get_current_token())))
+                self.log.debug("Traceback:\n" + "".join(traceback.format_stack()))
+                sys.exit(1)
+
         self.log.debug("------------------ returning: {}".format(left))
         return left
     def parse(self):
@@ -250,6 +263,13 @@ class Parser(object):
             parent_token.assert_token(self.get_current_token(), asserts[2])
 
 
+class ClassNameAdapter(logging.LoggerAdapter):
+    """Prepends class name to the logger messages.
+    """
+    def process(self, msg, kwargs):
+        return '[%s] %s' % (self.extra['classname'], msg), kwargs
+
+
 class Symbol(tokenizer.Token):
     """Symbol used for recursive parsing.
 
@@ -270,6 +290,7 @@ class Symbol(tokenizer.Token):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # For parse tree
+        self.log = ClassNameAdapter(self.log, {'classname': self.__class__.__name__})
         self.childs = [] # first, second, third
 
     def __repr__(self):
@@ -293,6 +314,7 @@ class Symbol(tokenizer.Token):
         Implementation of this should return symbol itself and leave next token not
         eaten by this symbol retreavable.
         """
+        self.log.warn("Default left implementation called!")
         parser.next_token()
         return self
         #emsg = "Syntax error '{}'".format(self.__class__.__name__)
