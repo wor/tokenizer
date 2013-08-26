@@ -399,14 +399,16 @@ class Tokenizer(object):
         """
         def generate_error_msg(pos, text):
             line_start_pos = 0
+            line_num = 1
             if pos != 0:
                 line_start_pos = text.rfind(os.linesep, 0, pos)+1
+                line_num = text.count(os.linesep, 0, pos)+1
             line_end_pos = text.find(os.linesep, pos, len(text))
             if line_end_pos == -1:
                 line_end_pos = len(text)-1
             line_pos = pos - line_start_pos
-            emsg = "Tokenizer stopped at pos {} of {} with char {}, with table {}. The input line was:\n<{}>\n".format(
-                    pos, len(text), repr(text[pos]), current_table.name, text[line_start_pos:line_end_pos])
+            emsg = "Tokenizer stopped at pos {}/{} in line {} with char {}, with table {}. The input line was:\n<{}>\n".format(
+                    pos, len(text), line_num, repr(text[pos]), current_table.name, text[line_start_pos:line_end_pos])
             emsg += " " + line_pos*" " + "^"
             return emsg
         def get_sub_matches(groups):
