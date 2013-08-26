@@ -400,7 +400,7 @@ class Tokenizer(object):
         def generate_error_msg(pos, text):
             line_start_pos = 0
             if pos != 0:
-                line_start_pos = text.rfind('\n', 0, pos)+1
+                line_start_pos = text.rfind(os.linesep, 0, pos)+1
             line_end_pos = text.find(os.linesep, pos, len(text))
             if line_end_pos == -1:
                 line_end_pos = len(text)-1
