@@ -17,10 +17,6 @@ Exception classes:
 Tokenizer takes a TokenTable which contains Token classes. When an input text is
 given for tokenization a stream of token instances from the token table classes
 is created.
-
-TODO: add ignore token tables (ignore tokens already implemented)
-TODO: check python2 compatibility.
-TODO: maybe support named subvalues for tokens?
 """
 
 
@@ -42,7 +38,8 @@ from collections import OrderedDict as Odict
 
 class TokenizerException(Exception):
     """Exception occurs when whole input could not be tokenized."""
-    # TODO: add pos and other info to the exception object
+    # TODO: add pos and other info in the current error message to the exception
+    # object.
     pass
 
 class TokenizerRegexpError(Exception):
