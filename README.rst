@@ -1,8 +1,10 @@
 Tokenizer
 =========
 
-Basic Python regular expression based tokenizer library. More info and use cases
-to come..
+Python regular expression based tokenizer library. More info and use cases to
+come..
+
+Contains also basic recursive parser (rparser.py_) module.
 
 An example of simple usage can be found from: `Desktop entry file tokenizer`_
 
@@ -21,4 +23,5 @@ Optional: `regex`_
 
 
 .. _`Desktop entry file tokenizer`: https://github.com/wor/desktop_file_parser/blob/master/src/wor/desktop_file_parser/tokenizer.py
+.. _`rparser.py`: https://github.com/wor/tokenizer/blob/master/src/wor/rparser.py
 .. _`regex`: https://pypi.python.org/pypi/regex
