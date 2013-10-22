@@ -13,6 +13,7 @@ class Parser(object):
     """Basic recursive parser.
 
     peek and get_current_token need support from the token generator object.
+    BidirGenCache can be used for this.
     """
     def __init__(self, token_generator, log=None):
         self.token_generator = token_generator
@@ -76,6 +77,10 @@ class Parser(object):
         self.log.debug("------------------ returning: {}".format(left))
         return left
     def parse(self):
+        """Starts parsing the Symbol stream.
+
+        Expects a token/symbol with name "EOP" to used to indicate end-of-program.
+        """
         while self.get_current_token().name != "EOP":
             self.log.debug("========= Parser level: %s", self.get_current_token())
             new_expression = self.expression()
