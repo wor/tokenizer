@@ -384,7 +384,9 @@ class Tokenizer(object):
         from the symbol table. Some tokens can cause symbol table switch using
         'table_change_rules'.
 
-        TODO: check that EOP token is given if yield_eop is true.
+        Note the magic token named "EOP" if yield_eop is True! If yield_eop is
+        True and no "EOP" named token exists in main token table, then the "EOP"
+        token is added.
 
         Args:
             text:      str. Target text where tokens are parsed.
@@ -392,7 +394,7 @@ class Tokenizer(object):
                 tokenized is end of program token named "EOP".
 
         Raises:
-            TokenizerException: If the whole input was not tokenized.
+            TokenizerException: if the whole input was not tokenized.
         """
         def generate_error_msg(pos, text):
             line_start_pos = 0
@@ -421,8 +423,20 @@ class Tokenizer(object):
 
         log = logging.getLogger(__name__)
 
+        # Check that EOP token is given, add it if not
+        if yield_eop:
+            try:
+                self.token_table.get_token("EOP")
+            except KeyError:
+                self.token_table.add_new_token("EOP", r"")
+
         # Initial table
         current_table = self.token_table
+
+        # Adding new token invalidates matchin regex, so regenerate it, if this
+        # has happened.
+        if not current_table.token_re:
+            current_table.regenerate_match_re()
 
         pos = 0
         while True:
@@ -453,6 +467,10 @@ class Tokenizer(object):
             if hasattr(current_table, "table_change_rules"):
                 if m.lastgroup in current_table.table_change_rules:
                     current_table = current_table.table_change_rules[m.lastgroup]
+                    # Check that table has been initialized (token regex
+                    # compiled)
+                    if not current_table.token_re:
+                        current_table.regenerate_match_re()
                     log.debug("Current token table change: {} -> {}".format(m.lastgroup, current_table.name))
 
         if yield_eop:
