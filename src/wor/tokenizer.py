@@ -323,7 +323,7 @@ class TokenTable(object):
                     trs += r"(?P<{}>{})".format(token.name, token.pattern_str)
                     try:
                         re.compile(trs, re.MULTILINE)
-                    except re.sre_compile.error:
+                    except Exception:
                         return (token.name, token.pattern_str)
                     trs += r"|"
 
@@ -336,7 +336,7 @@ class TokenTable(object):
         # Finally try to compile the regex
         try:
             self.__token_re = re.compile(token_re_str, re.MULTILINE)
-        except re.sre_compile.error as e:
+        except Exception as e:
             tb = sys.exc_info()[2]
             token_name, broken_regex = find_broken_token_regex()
             emsg = str(e) + " With token '{}' and regexp: '{}' and whole regexp: {}".format(token_name, broken_regex, token_re_str)
