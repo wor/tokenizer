@@ -379,10 +379,11 @@ class BidirGenCache(object):
 
     Attributes:
         prev_count: int. How many previous variables are cached as integer. "-1"
-        has special meaning to cache as long as memory runs out.
+            has special meaning to cache as long as memory runs out.
         next_count: int. How many future variables are cached. If this is 3 then
-        peek(3) works but peek(4) or larger doesn't. "-1" has special meaning to
-        allow peeking until memory is exhausted or wrapped generator ends.
+            peek(3) works but peek(4) or larger doesn't. "-1" has special
+            meaning to allow peeking until memory is exhausted or wrapped
+            generator ends.
 
     TODO:
         complete doc strings
