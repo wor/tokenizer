@@ -54,7 +54,7 @@ class Token(object):
         name:        str. Token classes identifying name.
         basename:    str. Parent (base) class' name (after init())
         pattern_str: str. Regex pattern for the tokens of this class as a raw
-        string.
+            string.
 
     Attributes:
         pos:               int. Position of the token in the input stream.
