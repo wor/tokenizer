@@ -81,6 +81,9 @@ class Parser(object):
 
         Expects a token/symbol with name "EOP" to used to indicate end-of-program.
         """
+        # Read first token as the current token
+        if self.token_generator.is_next_first():
+            next(self.token_generator)
         while self.get_current_token().name != "EOP":
             self.log.debug("========= Parser level: %s", self.get_current_token())
             new_expression = self.expression()
