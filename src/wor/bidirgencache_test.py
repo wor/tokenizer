@@ -100,6 +100,7 @@ def test_bidirgencache_prev_and_peek():
     NT.eq_(cgen.next_size(), 0)
     NT.eq_(cgen.prev(), fst)
     NT.assert_false(cgen.is_next_first())
+    NT.eq_(list(cgen.get_prev_cache()), [fst])
 
     # Get the second value
     snd = next(cgen)
@@ -110,6 +111,7 @@ def test_bidirgencache_prev_and_peek():
     NT.eq_(cgen.prev(1), snd)
     NT.eq_(cgen.prev(2), fst)
     NT.assert_false(cgen.is_next_first())
+    NT.eq_(list(cgen.get_prev_cache()), [snd, fst])
 
     # Get the third value
     thd = next(cgen)
@@ -119,6 +121,7 @@ def test_bidirgencache_prev_and_peek():
     NT.eq_(cgen.prev(2), snd)
     NT.eq_(cgen.prev(3), fst)
     NT.assert_false(cgen.is_next_first())
+    NT.eq_(list(cgen.get_prev_cache()), [thd, snd, fst])
 
     # Test peeking
     fut_fourth = cgen.peek(1)
@@ -130,6 +133,7 @@ def test_bidirgencache_prev_and_peek():
     NT.eq_(cgen.prev(3), fst)
     NT.eq_(cgen.peek(), fut_fourth)
     NT.eq_(cgen.peek(1), fut_fourth)
+    NT.eq_(list(cgen.get_next_cache()), [fut_fourth])
 
     fourth = next(cgen)
 
@@ -142,6 +146,7 @@ def test_bidirgencache_prev_and_peek():
     NT.eq_(cgen.prev(2), thd)
     NT.eq_(cgen.prev(3), snd)
     NT.eq_(cgen.prev(4), fst)
+    NT.eq_(list(cgen.get_prev_cache()), [fourth, thd, snd, fst])
 
     # Peek more
     fut_6th = cgen.peek(2)
@@ -153,6 +158,7 @@ def test_bidirgencache_prev_and_peek():
     NT.eq_(cgen.prev(3), snd)
     NT.eq_(cgen.prev(4), fst)
     NT.eq_(cgen.peek(2), fut_6th)
+    NT.eq_(len(list(cgen.get_next_cache())), 2)
 
     fifth = next(cgen)
 
@@ -165,6 +171,7 @@ def test_bidirgencache_prev_and_peek():
     NT.eq_(cgen.prev(5), fst)
     NT.eq_(cgen.peek(), fut_6th)
     NT.eq_(cgen.peek(1), fut_6th)
+    NT.eq_(list(cgen.get_prev_cache()), [fifth, fourth, thd, snd, fst])
 
     sixth = next(cgen)
 
@@ -177,7 +184,22 @@ def test_bidirgencache_prev_and_peek():
     NT.eq_(cgen.prev(4), thd)
     NT.eq_(cgen.prev(5), snd)
     NT.eq_(cgen.prev(6), fst)
+    NT.eq_(list(cgen.get_prev_cache()), [sixth, fifth, fourth, thd, snd, fst])
 
+def test_bidirgencache_caches():
+    cgen = init_bidircachegen()
+    cur_1 = next(cgen)
+    cur_2 = next(cgen)
+    cur_3 = next(cgen)
+    fut_1 = cgen.peek(1)
+    fut_2 = cgen.peek(2)
+    fut_3 = cgen.peek(3)
+
+    NT.eq_(cgen.prev_size(), 3)
+    NT.eq_(cgen.next_size(), 3)
+
+    NT.eq_(list(cgen.get_prev_cache()), [cur_3, cur_2, cur_1])
+    NT.eq_(list(cgen.get_next_cache()), [fut_1, fut_2, fut_3])
 
 def test_bidirgencache_send1():
     """Test BidirGenCache.send()."""
