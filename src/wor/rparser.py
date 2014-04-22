@@ -34,14 +34,14 @@ class Parser(object):
             get_str.string += d*" " + repr(n) + "\n"
             return True,n,None
         get_str.string = ""
-        self.child_visitor(get_str)
+        child_visitor(self, get_str)
         return get_str.string
     def __str__(self):
         def get_str(n, d):
             get_str.string += d*" " + str(n) + "\n"
             return True,n,None
         get_str.string = ""
-        self.child_visitor(get_str)
+        child_visitor(self, get_str)
         return get_str.string
     def get_token_gen(self):
         return self.token_generator
@@ -110,57 +110,6 @@ class Parser(object):
     #
     # Utility functions
     #
-    def child_visitor(self, actor, *args):
-        """Parser child (symbol) visitor.
-
-        Example:
-
-        > # Call clean() for Symbols if it exists
-        > def call_clean(n, d):
-        >     if hasattr(n, "clean") and not n.cleaned:
-        >         n.clean()
-        >         return False,n,None
-        >     return True,n,None
-        > parser.child_visitor(call_clean)
-        """
-        def treeVisitor(node, actor, *args, depth=0, parent=None, node_i=None):
-            """Tree node visitor from root to leafs.
-
-            Args:
-                actor: (node, depth: int) -> (descend, new_node, new_actor).
-                        Actor function which called for every visited node of
-                        the tree. Returns 3 values:
-                            descend: bool. True if continue to descent to the
-                                nodes childs.
-                            new_node: object: New object for which the current
-                                node is to be replaced.
-                            new_actor: Actor function for the childs. Used if
-                                ´descend´ was True.
-                *args: Non-keyword arguments for the given to the actor.
-                depth: int. Given root node depth. Provide if given root is not
-                            at depth 0.
-                parent: Symbol. Parent node.
-
-            Example:
-
-            > # Print all nodes with increasing indent as depth increseases.
-            > # Continue descend if possible, replace current node with "n"
-            > # (same node in this case), and no new actor function to replace
-            > # current actor function.
-            > def print_node(n, d):
-            >     print(d*" ", n)
-            >     return True,n,None
-            > treeVisitor(root, print_node)
-            """
-            descend, new_node, new_actor = actor(node, depth, *args)
-            if hasattr(parent, "childs") and parent and node_i != None:
-                parent.childs[node_i] = new_node
-            if descend and hasattr(node, "childs"):
-                for i,c in enumerate(node.childs):
-                    treeVisitor(c, new_actor if new_actor else actor, *args, depth=depth+1, parent=node, node_i=i)
-
-        for i,c in enumerate(self.childs):
-            treeVisitor(c, actor, *args, depth=0, parent=self, node_i=i)
     def get_dot_graph(self, name="parsed"):
         """Returns dot format graph of the current parse tree as a string.
         """
@@ -201,8 +150,8 @@ class Parser(object):
                 dot_str_list.append("    {} -> {}\n".format(node.id, child.id))
             return True,node,None
         dot_str_list = ["Digraph {} {{\n".format(name)]
-        self.child_visitor(node_vis, dot_str_list)
-        self.child_visitor(edge_vis, dot_str_list)
+        child_visitor(self, node_vis, dot_str_list)
+        child_visitor(self, edge_vis, dot_str_list)
         dot_str_list.append("}\n")
 
         return "".join(dot_str_list)
@@ -383,3 +332,59 @@ class Symbol(tokenizer.Token):
                 raise SyntaxError(emsg)
         elif token.name == token_name:
             raise SyntaxError(emsg)
+
+
+def child_visitor(parent, actor, *args):
+    """Child visitor
+
+    Visists given parents childs (enumeratable object) by calling given actor.
+    For the definition of actor function see treeVisitor.
+
+    Example:
+
+    > # Call clean() for Symbols if it exists
+    > def call_clean(n, d):
+    >     if hasattr(n, "clean") and not n.cleaned:
+    >         n.clean()
+    >         return False,n,None
+    >     return True,n,None
+    > parser.child_visitor(call_clean)
+    """
+    def treeVisitor(node, actor, *args, depth=0, parent=None, node_i=None):
+        """Tree node visitor from root to leafs.
+
+        Args:
+            actor: (node, depth: int) -> (descend, new_node, new_actor).
+                    Actor function which called for every visited node of
+                    the tree. Returns 3 values:
+                        descend: bool. True if continue to descent to the
+                            nodes childs.
+                        new_node: object: New object for which the current
+                            node is to be replaced.
+                        new_actor: Actor function for the childs. Used if
+                            ´descend´ was True.
+            *args: Non-keyword arguments for the given to the actor.
+            depth: int. Given root node depth. Provide if given root is not
+                        at depth 0.
+            parent: Symbol. Parent node.
+
+        Example:
+
+        > # Print all nodes with increasing indent as depth increseases.
+        > # Continue descend if possible, replace current node with "n"
+        > # (same node in this case), and no new actor function to replace
+        > # current actor function.
+        > def print_node(n, d):
+        >     print(d*" ", n)
+        >     return True,n,None
+        > treeVisitor(root, print_node)
+        """
+        descend, new_node, new_actor = actor(node, depth, *args)
+        if hasattr(parent, "childs") and parent and node_i != None:
+            parent.childs[node_i] = new_node
+        if descend and hasattr(node, "childs"):
+            for i,c in enumerate(node.childs):
+                treeVisitor(c, new_actor if new_actor else actor, *args, depth=depth+1, parent=node, node_i=i)
+
+    for i,c in enumerate(parent.childs):
+        treeVisitor(c, actor, *args, depth=0, parent=parent, node_i=i)
