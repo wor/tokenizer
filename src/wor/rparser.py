@@ -15,9 +15,19 @@ class Parser(object):
     peek and get_current_token need support from the token generator object.
     BidirGenCache can be used for this.
     """
-    def __init__(self, token_generator, log=None):
+    def __init__(self, token_generator, original_input=None, log=None):
+        """Parser initialization.
+
+        Args:
+            token_generator: yieldable. Generator for the tokens which are
+                parsed.
+            original_input: str. Indexed by position for debug output. Tokens
+                position should match this their position in this object.
+            log: logging.Logger: Logger to be used for logging.
+        """
         self.token_generator = token_generator
         self.childs = []
+        self.original_input = original_input
         self.log = log if log != None else logging.getLogger(__name__)
     def __repr__(self):
         def get_str(n, d):
