@@ -26,6 +26,13 @@ class Parser(object):
             log: logging.Logger: Logger to be used for logging.
         """
         self.token_generator = token_generator
+        # Every generated token now has quick access to this parser, if token
+        # generator object supports generated values attribute modifying through
+        # attr_mod (see: BidirGenCache).
+        # We could use global or some other token accessable scope also, instead
+        # of this "hack" :)
+        if hasattr(self.token_generator, "attr_mod"):
+            self.token_generator.attr_mod.update([("parser", self)])
         self.childs = []
         self.original_input = original_input
         self.log = log if log != None else logging.getLogger(__name__)

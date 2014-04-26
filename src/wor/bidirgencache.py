@@ -8,6 +8,10 @@ class BidirGenCache(object):
 
     It's basically a memoryview for a generator.
 
+    Other functionality mainly targeted at token stream generation includes
+    dynamic size previous caching using 'cache_prev_fn' and the generated
+    objects attribute modifier using 'attr_mod' dictionary.
+
     Attributes:
         prev_limit: int. How many previous variables are cached as integer. "-1"
             has special meaning to cache as long as memory runs out.
@@ -15,11 +19,13 @@ class BidirGenCache(object):
             peek(3) works but peek(4) or larger doesn't. "-1" has special
             meaning to allow peeking until memory is exhausted or wrapped
             generator ends.
+        attr_mod: {str->obj}. See __init__.
 
     TODO:
         complete doc strings
     """
-    def __init__(self, generator, prev_limit=1, next_limit=1, cache_prev_fn=None):
+    def __init__(self, generator, prev_limit=1, next_limit=1,
+            cache_prev_fn=None, attr_mod={}):
         """Initilizes bidirectional generator cacher.
 
         Args:
@@ -32,6 +38,11 @@ class BidirGenCache(object):
                 emptied when this function returns True for the object yielded by
                 the generator. This is a way to hold context dependant number of
                 objects in the cache.
+            attr_mod: {str->obj}. Mapping from attribute name to attribute
+                value. The object generated from the wrapped generator will have
+                these attributes set. This happens also for sent objects using send().
+                There's a condition that the attributes must already exist and
+                have the value of 'None'.
 
         Raises:
             ValueError: If invalid prev_limit or next_limit are given. Meaning values < -1.
@@ -46,6 +57,27 @@ class BidirGenCache(object):
         self._past_cache = collections.deque(maxlen=prev_limit if prev_limit != -1 else None)
         # Future cache contains future (next) values
         self._future_cache = collections.deque(maxlen=next_limit if next_limit != -1 else None)
+        self.attr_mod = attr_mod
+    def _preform_attr_mod(self, obj):
+        """Modifies given objects attributes to match 'attr_mod' mapping.
+
+        Object 'obj' must have the attribute already and it's value must be 'None'.
+
+        Args:
+            obj. object: Object which attributes will be modified.
+        """
+        for key, value in self.attr_mod.items():
+            try:
+                attr = getattr(obj, key)
+                if attr == None:
+                    setattr(obj, key, value)
+            except AttributeError:
+                pass
+    def _get_next(self):
+        """Next call wrapped with attribute modifying."""
+        retval = next(self._generator)
+        self._preform_attr_mod(retval)
+        return retval
     def __next__(self):
         """Next value getter for iteration.
 
@@ -68,7 +100,7 @@ class BidirGenCache(object):
                 self._past_cache.popleft()
             self._past_cache.append(retval)
         else:
-            retval = next(self._generator)
+            retval = self._get_next()
             if is_past_cache_full():
                 self._past_cache.popleft()
             self._past_cache.append(retval)
@@ -81,7 +113,7 @@ class BidirGenCache(object):
                 self.next_limit, self._past_cache, self._future_cache)
     def _fill_cache(self, cache, count):
         for _ in range(0,count-len(cache)):
-            cache.append(next(self._generator))
+            cache.append(self._get_next())
     ### Read only properties:
     @property
     def next_limit(self):
@@ -163,6 +195,7 @@ class BidirGenCache(object):
         if self.next_limit != -1 and self.next_limit <= len(self._future_cache):
             raise KeyError("Generator cache full.")
         else:
+            self._preform_attr_mod(item)
             self._future_cache.appendleft(item)
     def get_prev_cache(self):
         """Returns a generator for the prev/past cache.

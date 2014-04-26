@@ -11,25 +11,40 @@ from enum import Enum
 
 from .bidirgencache import BidirGenCache
 
+
 class SampleGenType(Enum):
     linear = 1
     looping = 2
+    objectvalue = 3
+
+class TestObject(object):
+    def __init__(self, value):
+        self.value = value
+        self.valkey1 = None
+        self.valkey2 = None
+        self.notnull = 10
 
 def init_bidircachegen(
         sample_gen_type=SampleGenType.linear,
         prev_limit=-1, next_limit=-1,
-        cache_prev_fn=None):
+        cache_prev_fn=None,
+        attr_mod={}):
     def sample_gen_linear():
         for i in range(1, sys.maxsize):
             yield i
     def sample_gen_looping():
         for i in range(1, sys.maxsize):
             yield (i % 11)
+    def sample_testobject():
+        for i in range(1, sys.maxsize):
+            yield TestObject(i)
 
     if sample_gen_type == SampleGenType.linear:
         generator = sample_gen_linear
     elif sample_gen_type == SampleGenType.looping:
         generator = sample_gen_looping
+    elif sample_gen_type == SampleGenType.objectvalue:
+        generator = sample_testobject
     else:
         assert(False)
 
@@ -37,7 +52,8 @@ def init_bidircachegen(
             generator(),
             prev_limit=prev_limit,
             next_limit=next_limit,
-            cache_prev_fn=cache_prev_fn)
+            cache_prev_fn=cache_prev_fn,
+            attr_mod=attr_mod)
 
 # -----------------
 
@@ -287,3 +303,17 @@ def test_bidirgencache_func_cache1():
 
     next(cgen)
     NT.eq_(cgen.prev_size(), 1)
+
+def test_attr_mod1():
+    """Test generated items attribute modifier."""
+    attr_mod = {"valkey1": "test value", "valkey2": 2, "notnull": 3, "valkey3": 4}
+    cgen = init_bidircachegen(SampleGenType.objectvalue, -1, -1, attr_mod=attr_mod)
+
+    fst = next(cgen)
+    # Null values should be set ok
+    NT.eq_(fst.valkey1, attr_mod["valkey1"])
+    NT.eq_(fst.valkey2, attr_mod["valkey2"])
+    # Not null values should not be modified
+    NT.assert_not_equal(fst.notnull, attr_mod["notnull"])
+    # Non-existing attributes should not be added
+    NT.assert_false(hasattr(fst, "valkey3"))
