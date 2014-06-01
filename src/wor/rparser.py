@@ -323,7 +323,7 @@ class Symbol(tokenizer.Token):
         """Returns next token if its name does not match given else raises a SyntaxError.
         """
         next_token = next(token_gen)
-        self.massert_token(next_token.name, token_name)
+        self.nassert_token(next_token, token_name)
         return next_token
     def assert_token(self, token, token_name):
         emsg = "Syntax error '{}': expected '{}' token next (got: {})".format(self.__class__.__name__, token_name, token.id)
