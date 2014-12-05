@@ -3,8 +3,11 @@
 """
 import traceback
 import sys
+import os
 import logging
 import collections
+
+import termcolor as TC
 
 from . import tokenizer
 
@@ -61,6 +64,8 @@ class Parser(object):
     def peek(self, count=1):
         return self.token_generator.peek(count)
     def expression(self, rbp=0):
+        """Parses an expression, starting from the current token.
+        """
         self.log.debug("-------------- rbp={} ---------------".format(rbp))
         self.log.debug("{}: Entering: with current token: {}"
                 .format(self.__class__.__name__, self.get_current_token()))
@@ -73,6 +78,11 @@ class Parser(object):
                     .format(self.__class__.__name__, repr(self.get_current_token())))
             self.log.debug("Traceback:\n" + "".join(traceback.format_stack()))
             sys.exit(1)
+        except SyntaxError as e:
+            self.log.error(e)
+            self.print_current_place()
+            self.log.debug("Traceback:\n" + "".join(traceback.format_stack()))
+            sys.exit(1)
         self.log.debug("{}: got left: {}".format(self.__class__.__name__, left))
         self.log.debug("- Right token:{} : {}".format(self.get_current_token().lbp, self.get_current_token()))
         while rbp < self.get_current_token().lbp:
@@ -83,6 +93,7 @@ class Parser(object):
                 left = self.get_current_token().right(left, self)
             except SyntaxError as e:
                 self.log.error(e)
+                self.print_current_place()
                 self.log.debug("Traceback:\n" + "".join(traceback.format_stack()))
                 sys.exit(1)
             except StopIteration as e:
@@ -235,6 +246,74 @@ class Parser(object):
             parent_token.nassert_token(self.get_current_token(), nasserts[2])
         if asserts and asserts[2]:
             parent_token.assert_token(self.get_current_token(), asserts[2])
+    def print_current_place(self):
+        """Logs current place of parsing.
+
+        XXX: this is to be tokenazation debugger using token generator cache.
+
+        TODO: notify if limited by prev cache size
+        TODO: print current line number.
+        """
+        current_line_tokens = []
+        for i in self.token_generator.get_prev_cache():
+            if i.value != "\n":
+                if i.value != None:
+                    current_line_tokens.append(i.value)
+            else:
+                break
+        if len(current_line_tokens):
+            current_line_tokens.reverse()
+            msg = "".join(current_line_tokens[0:-1])
+            msg += TC.colored(current_line_tokens[-1], 'white', 'on_red')
+            self.log.error(msg)
+    def print_current_input_context(self, ctx_token=None):
+        """Prints current input context, usefull for debugging.
+
+        Uses parsers current token for the location if no context token given.
+
+        Args:
+            ctx_token: Token(). Token which place and possibly surroundings in
+                input are printed.
+
+        TODO:
+            * print log messages with different format, no need for function and line info
+                so don't use log.error
+        """
+        ctok              = self.get_current_token() if ctx_token == None else ctx_token
+        ctok_len          = len(ctok.value) if ctok.value != None else 0
+        token_end_pos     = ctok.pos
+        token_start_pos   = token_end_pos - ctok_len
+        current_linenum   = self.original_input.count(
+                              os.linesep, 0, token_start_pos) + 1
+        line_beg_pos      = self.original_input.rfind(os.linesep, 0, token_end_pos)
+        if line_beg_pos == -1: # If first line, no newline found
+            line_beg_pos = 0
+        prev_line_beg_pos = self.original_input.rfind(os.linesep, 0, line_beg_pos)
+
+        #print("---")
+        #print(len(self.original_input))
+        #print(token_end_pos)
+        #print("token start pos:", token_start_pos)
+        #print("line beg pos:", line_beg_pos)
+        #print("prev line beg pos:", prev_line_beg_pos)
+        #print("---")
+
+        msg = "Current token: {}, position: {}/{}, line number: {}\n".format(
+                ctok.name, token_end_pos, len(self.original_input), current_linenum)
+
+        # Print context lines (previous and current line)
+        if token_end_pos != len(self.original_input):
+            if current_linenum > 1:
+                prev_line = self.original_input[prev_line_beg_pos+1:line_beg_pos+1]
+                msg += "line {}: {}".format(current_linenum - 1, prev_line)
+            msg += "line {}: ".format(current_linenum)
+            if ctok_len:
+                tok_val = ctok.value.encode('unicode_escape').decode('utf8')
+                msg += self.original_input[line_beg_pos:token_start_pos]
+                msg += TC.colored(tok_val, 'white', 'on_blue')
+            else:
+                msg += self.original_input[line_beg_pos:token_end_pos]
+        self.log.error(msg)
 
 
 class ClassNameAdapter(logging.LoggerAdapter):
