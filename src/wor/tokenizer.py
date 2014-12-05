@@ -378,6 +378,21 @@ class Tokenizer(object):
     def info(self):
         # TODO: return more elaborate information string than __str__.
         pass
+    def get_python_code(self):
+        """Experimental python code generator for the tokenizer.
+
+        TODO:
+        Returns code for a module which provides tok_gen(input_text) generator
+        function.
+
+        Returns:
+            str. Python code as a string.
+        """
+        log = logging.getLogger(__name__)
+        if self.context_tables:
+            log.error("Not implemented with context tables.")
+            return ""
+        return self.token_table.token_re.pattern
     def get_tokens_gen(self, text, yield_eop=True):
         """
         Returns generator for parsed tokens which are instances of Token classes
